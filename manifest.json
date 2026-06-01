@@ -1,0 +1,9 @@
+{
+  "name": "藥物比例換算器",
+  "short_name": "換算器",
+  "description": "輸入全方比例，自動換算並分成兩張藥單",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f5f0eb",
+  "theme_color": "#8b6f47"
+}

@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>藥物比例換算器</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#8b6f47">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="換算器">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "PingFang TC", "Noto Sans TC", sans-serif;
+    background: #f5f0eb;
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 28px 16px;
+  }
+  .card {
+    background: white;
+    border-radius: 16px;
+    padding: 32px;
+    width: 100%;
+    max-width: 580px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+  }
+  h1 { font-size: 1.4rem; color: #3a2e1e; margin-bottom: 5px; }
+  .subtitle { font-size: 0.84rem; color: #aaa; margin-bottom: 24px; }
+
+  /* ── 輸入區 ── */
+  label { display: block; font-size: 0.88rem; color: #555; margin-bottom: 6px; }
+  textarea {
+    width: 100%;
+    border: 1.5px solid #ddd;
+    border-radius: 10px;
+    padding: 12px;
+    font-size: 1rem;
+    font-family: "SF Mono", "Menlo", monospace;
+    resize: vertical;
+    min-height: 64px;
+    color: #333;
+    transition: border-color 0.2s;
+    letter-spacing: 0.02em;
+  }
+  textarea:focus { outline: none; border-color: #8b6f47; }
+  textarea.err   { border-color: #e74c3c !important; }
+
+  .count-bar {
+    font-size: 0.78rem;
+    color: #bbb;
+    margin-top: 4px;
+    min-height: 1.15em;
+    transition: color 0.2s;
+  }
+  .count-bar.over { color: #e74c3c; font-weight: 600; }
+
+  .hint { font-size: 0.78rem; color: #bbb; margin-top: 4px; }
+
+  .total-row {
+    display: flex; align-items: center; gap: 10px;
+    margin: 12px 0 18px;
+  }
+  .total-row label { margin: 0; white-space: nowrap; }
+  .total-row input {
+    width: 78px;
+    border: 1.5px solid #ddd;
+    border-radius: 10px;
+    padding: 9px 12px;
+    font-size: 1rem;
+    font-family: inherit;
+    color: #333;
+  }
+  .total-row input:focus { outline: none; border-color: #8b6f47; }
+  .total-row span { font-size: 0.87rem; color: #aaa; }
+
+  /* ── 按鈕 ── */
+  .btn {
+    width: 100%;
+    padding: 13px;
+    background: #8b6f47;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 0.97rem;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .btn:hover { background: #7a5f38; }
+
+  /* ── 錯誤 ── */
+  .error {
+    margin-top: 10px;
+    padding: 9px 13px;
+    background: #fff0f0;
+    border: 1px solid #ffcccc;
+    border-radius: 8px;
+    color: #c0392b;
+    font-size: 0.85rem;
+    display: none;
+  }
+
+  /* ── 結果 ── */
+  .results { margin-top: 24px; display: none; }
+
+  .block {
+    margin-bottom: 6px;
+  }
+  .block-divider {
+    border: none;
+    border-top: 1.5px dashed #e8dfd2;
+    margin: 18px 0;
+  }
+
+  /* 區塊標頭 */
+  .block-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .block-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .badge {
+    display: inline-block;
+    padding: 3px 11px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 700;
+  }
+  .badge-ref { background: #f0ece4; color: #7a6040; }
+  .badge-a   { background: #f3ede4; color: #8b6f47; }
+  .badge-b   { background: #e4f0ee; color: #3a6a5f; }
+  .badge-x2  { background: #3a6a5f; color: white; }
+  .block-meta { font-size: 0.8rem; color: #bbb; }
+
+  /* 數字 chips */
+  .num-row { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 5px; }
+  .chip {
+    border-radius: 8px;
+    padding: 6px 13px 8px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    font-family: "SF Mono", "Menlo", monospace;
+    min-width: 50px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+  }
+  .chip u { font-size: 0.67rem; font-weight: 400; color: #bbb; text-decoration: none; margin-left: 1px; }
+  .chip-ratio {
+    font-size: 0.6rem;
+    font-weight: 500;
+    opacity: 0.5;
+    letter-spacing: 0.02em;
+    line-height: 1.2;
+    font-family: "SF Mono", "Menlo", monospace;
+  }
+  .chip-ref { color: #7a6040; background: #faf7f3; border: 1.5px solid #e0d4c0; }
+  .chip-a   { color: #8b6f47; background: #fdf9f4; border: 1.5px solid #e0ceba; }
+  .chip-b   { color: #3a6a5f; background: #f3faf8; border: 1.5px solid #b8d9d2; }
+  .chip-x2  { color: #1a4a40; background: #e8f5f2; border: 1.5px solid #98bfb8; }
+
+  /* 全方區：A/B chips 分行 */
+  .ref-section { margin-bottom: 4px; }
+  .ref-row-label {
+    font-size: 0.72rem;
+    color: #ccc;
+    margin-bottom: 5px;
+    letter-spacing: 0.04em;
+  }
+
+  .row-sub-label {
+    font-size: 0.75rem;
+    color: #aaa;
+    margin: 11px 0 5px;
+    letter-spacing: 0.04em;
+  }
+  .sum-line { font-size: 0.8rem; color: #aaa; margin-top: 4px; }
+  .sum-line b { color: #555; font-weight: 600; }
+
+  /* 複製按鈕 */
+  .copy-btn {
+    padding: 4px 12px;
+    font-size: 0.78rem;
+    font-family: inherit;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .copy-ref { background: #f0ece4; color: #7a6040; }
+  .copy-ref:hover { background: #e4ddd2; }
+  .copy-a   { background: #f3ede4; color: #8b6f47; }
+  .copy-a:hover   { background: #eae0d4; }
+  .copy-b   { background: #e4f0ee; color: #3a6a5f; }
+  .copy-b:hover   { background: #d4e8e2; }
+  .copy-x2  { background: #3a6a5f; color: white; }
+  .copy-x2:hover  { background: #2e5a50; }
+  .btn-row { display: flex; gap: 6px; margin-top: 9px; justify-content: flex-end; }
+
+  /* 合計欄 */
+  .grand-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    margin-top: 6px;
+    padding: 9px 13px;
+    background: #f7f3ee;
+    border-radius: 8px;
+    font-size: 0.83rem;
+    color: #999;
+  }
+  .grand-row b { color: #3a2e1e; font-size: 0.94rem; }
+
+  /* 分組提示 */
+  .split-note {
+    font-size: 0.78rem;
+    color: #bbb;
+    margin-top: 6px;
+    text-align: right;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>藥物比例換算器</h1>
+  <p class="subtitle">輸入全方比例，自動換算 30g 並分成兩張藥單（A 20g＋B 10g）</p>
+
+  <label>全方比例（所有藥味）</label>
+  <textarea id="input-main"
+    placeholder="輸入所有藥物的比例數字，空格分隔&#10;例：3 2 2 1 1 3 2 1 2 1 1 2 3 1"
+    rows="3"
+    oninput="onInputChange()"></textarea>
+  <div class="count-bar" id="count-main"></div>
+  <p class="hint">純數字，空格或逗號分隔；自動以最佳比例分 A 組（20g）/ B 組（10g）</p>
+
+  <div class="total-row">
+    <label>總量</label>
+    <input type="number" id="total-main" value="30" min="1" oninput="onInputChange()">
+    <span>克（g）</span>
+  </div>
+
+  <button class="btn" onclick="calculate()">換算並自動分組</button>
+  <div class="error" id="err-main"></div>
+
+  <!-- ══════════ 結果 ══════════ -->
+  <div class="results" id="results">
+
+    <!-- 全方參考 -->
+    <div class="block">
+      <div class="block-header">
+        <div class="block-title">
+          <span class="badge badge-ref" id="ref-badge">全方 30g</span>
+          <span class="block-meta" id="ref-meta"></span>
+        </div>
+        <button class="copy-btn copy-ref" onclick="copyData('ref')">複製全方</button>
+      </div>
+      <!-- A 組 chips -->
+      <div class="ref-section">
+        <div class="ref-row-label" id="ref-a-label"></div>
+        <div class="num-row" id="ref-nums-a"></div>
+      </div>
+      <!-- B 組 chips -->
+      <div class="ref-section" id="ref-b-section">
+        <div class="ref-row-label" id="ref-b-label"></div>
+        <div class="num-row" id="ref-nums-b"></div>
+      </div>
+      <div class="sum-line" id="sum-ref"></div>
+      <div class="split-note" id="split-note"></div>
+    </div>
+
+    <hr class="block-divider">
+
+    <!-- 藥單 A -->
+    <div class="block" id="block-a">
+      <div class="block-header">
+        <div class="block-title">
+          <span class="badge badge-a">藥單 A</span>
+          <span class="block-meta" id="a-meta"></span>
+        </div>
+        <button class="copy-btn copy-a" onclick="copyData('a')">複製</button>
+      </div>
+      <div class="num-row" id="nums-a"></div>
+      <div class="sum-line" id="sum-a"></div>
+    </div>
+
+    <!-- 藥單 B -->
+    <div class="block" id="block-b">
+      <hr class="block-divider" id="ab-hr">
+      <div class="block-header" style="margin-bottom:6px;">
+        <div class="block-title">
+          <span class="badge badge-b">藥單 B</span>
+          <span class="block-meta" id="b-meta"></span>
+        </div>
+      </div>
+
+      <div class="row-sub-label">10 g</div>
+      <div class="num-row" id="nums-b"></div>
+      <div class="sum-line" id="sum-b"></div>
+
+      <div class="row-sub-label">× 2（= 20 g）</div>
+      <div class="num-row" id="nums-b2"></div>
+      <div class="sum-line" id="sum-b2"></div>
+
+      <div class="btn-row">
+        <button class="copy-btn copy-b"  onclick="copyData('b')">複製 10g</button>
+        <button class="copy-btn copy-x2" onclick="copyData('b2')">複製 ×2</button>
+      </div>
+    </div>
+
+    <!-- A＋B 合計 -->
+    <div class="grand-row" id="grand-row">
+      <span>藥單 A ＋ 藥單 B</span>
+      <b id="grand-val"></b>
+    </div>
+
+  </div><!-- /results -->
+</div>
+
+<script>
+const r1 = v => Math.round(v * 10) / 10;
+
+// 儲存最後計算結果
+let store = { ref: [], a: [], b: [] };
+
+/* ── 解析純數字 ── */
+function parseNums(raw) {
+  const tokens = raw.trim().split(/[\s,，、]+/).filter(Boolean);
+  if (!tokens.length) return null;
+  const nums = tokens.map(t => parseFloat(t));
+  return nums.some(n => isNaN(n) || n <= 0) ? null : nums;
+}
+
+/* ── 按比例換算（最大餘數法，保證加總精確等於 total）── */
+function toGrams(ratios, total) {
+  const sum        = ratios.reduce((s, r) => s + r, 0);
+  const totalTenths = Math.round(total * 10);          // 換成「0.1g」單位整數
+  const exact      = ratios.map(r => r / sum * totalTenths);
+  const floors     = exact.map(v => Math.floor(v));
+  const remainder  = totalTenths - floors.reduce((s, v) => s + v, 0);
+
+  // 依小數餘量降序排列，把剩餘的 0.1g 一個個補給餘量最大的藥
+  const order = exact
+    .map((v, i) => ({ i, frac: v - Math.floor(v) }))
+    .sort((a, b) => b.frac - a.frac);
+
+  const tenths = [...floors];
+  for (let k = 0; k < remainder; k++) tenths[order[k].i]++;
+
+  return tenths.map(v => v / 10);   // 還原成克
+}
+
+/* ── 即時計數 ── */
+function onInputChange() {
+  const raw = document.getElementById('input-main').value;
+  const bar = document.getElementById('count-main');
+  const tokens = raw.trim().split(/[\s,，、]+/).filter(Boolean);
+  const n = raw.trim() ? tokens.length : 0;
+  if (!n) { bar.textContent = ''; bar.classList.remove('over'); return; }
+  const over = n > 24;
+  bar.classList.toggle('over', over);
+  if (over) {
+    bar.textContent = `⚠ ${n} 味（超過上限 24 味，A＋B 每組最多各 12 味）`;
+  } else {
+    const nums = raw.trim().split(/[\s,，、]+/).filter(Boolean).map(t => parseFloat(t));
+    if (nums.some(v => isNaN(v) || v <= 0)) {
+      bar.textContent = `${n} 個數值（含無效數字）`;
+    } else {
+      const { idxA, idxB } = optimalSplit(nums);
+      bar.textContent = idxB.length > 0
+        ? `${n} 味 → 最佳分組：A 組 ${idxA.length} 味 ／ B 組 ${idxB.length} 味`
+        : `${n} 味 → 全部放入 A 組`;
+    }
+  }
+}
+
+/* ── 渲染 chips ── */
+function renderChips(id, grams, ratios, cls) {
+  document.getElementById(id).innerHTML =
+    grams.map((g, i) => `<div class="chip ${cls}"><span class="chip-ratio">${ratios[i]}</span>${g}<u>g</u></div>`).join('');
+}
+
+/* ── 最佳分組（DP：找使 A 組比例總和最接近 2/3 的子集）── */
+function optimalSplit(ratios) {
+  const N = ratios.length;
+  if (N === 0) return { idxA: [], idxB: [] };
+  if (N === 1) return { idxA: [0], idxB: [] };
+
+  const totalSum = ratios.reduce((s, r) => s + r, 0);
+  const iTarget  = Math.round(totalSum * 2 / 3 * 10);
+  const minA     = Math.max(1, N - 12);
+  const maxA     = Math.min(N - 1, 12);
+
+  const iRatios = ratios.map(r => Math.round(r * 10));
+  const iTotal  = iRatios.reduce((s, r) => s + r, 0);
+
+  if (iTotal > 30000) {                           // 安全退路
+    const nA = Math.min(Math.ceil(N / 2), 12);
+    return { idxA: Array.from({length: nA}, (_, i) => i),
+             idxB: Array.from({length: N - nA}, (_, i) => i + nA) };
+  }
+
+  const MS = iTotal + 1;
+
+  // dp layers[i][j*MS + s] = 前 i 個取 j 個、合計為 s 是否可達
+  const layers = [];
+  const init = new Uint8Array((maxA + 1) * MS);
+  init[0] = 1;
+  layers.push(init);
+
+  for (let i = 0; i < N; i++) {
+    const r    = iRatios[i];
+    const prev = layers[i];
+    const curr = new Uint8Array(prev);
+    for (let j = 0; j < maxA; j++) {
+      const base = j * MS;
+      for (let s = 0; s + r < MS; s++) {
+        if (prev[base + s]) curr[(j + 1) * MS + s + r] = 1;
+      }
+    }
+    layers.push(curr);
+  }
+
+  // 找最接近 iTarget 的合法狀態
+  const final = layers[N];
+  let bestJ = -1, bestS = -1, bestDiff = Infinity;
+  for (let j = minA; j <= maxA; j++) {
+    const base = j * MS;
+    for (let s = 0; s < MS; s++) {
+      if (final[base + s]) {
+        const diff = Math.abs(s - iTarget);
+        if (diff < bestDiff) { bestDiff = diff; bestJ = j; bestS = s; }
+      }
+    }
+  }
+
+  if (bestJ === -1) {
+    const nA = Math.min(Math.ceil(N / 2), 12);
+    return { idxA: Array.from({length: nA}, (_, i) => i),
+             idxB: Array.from({length: N - nA}, (_, i) => i + nA) };
+  }
+
+  // 回溯還原選了哪些 index
+  const selected = new Set();
+  let j = bestJ, s = bestS;
+  for (let i = N - 1; i >= 0; i--) {
+    if (j > 0 && s >= iRatios[i] && layers[i][(j - 1) * MS + s - iRatios[i]]) {
+      selected.add(i); j--; s -= iRatios[i];
+    }
+  }
+
+  const idxA = [], idxB = [];
+  for (let i = 0; i < N; i++) (selected.has(i) ? idxA : idxB).push(i);
+  return { idxA, idxB };
+}
+
+/* ══════════ 主計算 ══════════ */
+function calculate() {
+  const raw   = document.getElementById('input-main').value;
+  const total = parseFloat(document.getElementById('total-main').value);
+  const errEl = document.getElementById('err-main');
+  const resEl = document.getElementById('results');
+
+  errEl.style.display = 'none';
+  resEl.style.display = 'none';
+  document.getElementById('input-main').classList.remove('err');
+
+  if (!raw.trim()) { showErr('請輸入藥物比例'); return; }
+  if (!total || total <= 0) { showErr('請輸入有效的總量'); return; }
+
+  const ratios = parseNums(raw);
+  if (!ratios) {
+    document.getElementById('input-main').classList.add('err');
+    showErr('格式有誤，請輸入純數字（空格分隔）');
+    return;
+  }
+
+  const N = ratios.length;
+  if (N > 24) {
+    document.getElementById('input-main').classList.add('err');
+    showErr(`共 ${N} 味，超過上限（A＋B 每組各最多 12 味，合計最多 24 味）`);
+    return;
+  }
+
+  /* ── 最佳分組（DP 求最接近 20g:10g 比例的子集）── */
+  const { idxA, idxB } = optimalSplit(ratios);
+  const nA      = idxA.length;
+  const ratiosA = idxA.map(i => ratios[i]);
+  const ratiosB = idxB.map(i => ratios[i]);
+  const hasB    = ratiosB.length > 0;
+
+  /* ── 計算各段 ── */
+  store.ref = toGrams(ratios, total);
+  store.a   = toGrams(ratiosA, 20);
+  store.b   = hasB ? toGrams(ratiosB, 10) : [];
+  const b2  = store.b.map(v => v * 2);   // 10g ×2，不另行四捨五入，保持精確
+
+  const refA = idxA.map(i => store.ref[i]);
+  const refB = idxB.map(i => store.ref[i]);
+
+  /* ── 渲染：全方 ── */
+  document.getElementById('ref-badge').textContent = `全方 ${total}g`;
+  document.getElementById('ref-meta').textContent  = `${N} 味`;
+
+  renderChips('ref-nums-a', refA, ratiosA, 'chip-a');
+  document.getElementById('ref-a-label').textContent = `A 組（${nA} 味）`;
+
+  const refBSection = document.getElementById('ref-b-section');
+  if (hasB) {
+    renderChips('ref-nums-b', refB, ratiosB, 'chip-b');
+    document.getElementById('ref-b-label').textContent = `B 組（${ratiosB.length} 味）`;
+    refBSection.style.display = 'block';
+  } else {
+    refBSection.style.display = 'none';
+  }
+
+  const refTotal = r1(store.ref.reduce((s, v) => s + v, 0));
+  document.getElementById('sum-ref').innerHTML = `合計 <b>${refTotal} g</b>`;
+  document.getElementById('split-note').textContent =
+    hasB ? `最佳分組：A 組 ${nA} 味 → 20g　B 組 ${ratiosB.length} 味 → 10g` : `${N} 味全數放入 A 組`;
+
+  /* ── 渲染：藥單 A ── */
+  renderChips('nums-a', store.a, ratiosA, 'chip-a');
+  document.getElementById('a-meta').textContent = `${nA} 味 → 20g`;
+  document.getElementById('sum-a').innerHTML =
+    `合計 <b>${r1(store.a.reduce((s,v)=>s+v,0))} g</b>`;
+
+  /* ── 渲染：藥單 B ── */
+  const blockB = document.getElementById('block-b');
+  const abHr   = document.getElementById('ab-hr');
+  if (hasB) {
+    renderChips('nums-b',  store.b,  ratiosB, 'chip-b');
+    renderChips('nums-b2', b2,       ratiosB, 'chip-x2');
+    document.getElementById('b-meta').textContent = `${ratiosB.length} 味 → 10g`;
+    document.getElementById('sum-b').innerHTML  =
+      `合計 <b>${r1(store.b.reduce((s,v)=>s+v,0))} g</b>`;
+    document.getElementById('sum-b2').innerHTML =
+      `合計 <b>${r1(b2.reduce((s,v)=>s+v,0))} g</b>`;
+    blockB.style.display = 'block';
+    abHr.style.display   = '';
+  } else {
+    blockB.style.display = 'none';
+    abHr.style.display   = 'none';
+  }
+
+  /* ── 合計 ── */
+  const grandRow = document.getElementById('grand-row');
+  if (hasB) {
+    const gt = r1(store.a.reduce((s,v)=>s+v,0) + store.b.reduce((s,v)=>s+v,0));
+    document.getElementById('grand-val').textContent = `= ${gt} g`;
+    grandRow.style.display = 'flex';
+  } else {
+    grandRow.style.display = 'none';
+  }
+
+  resEl.style.display = 'block';
+}
+
+/* ══════════ 複製 ══════════ */
+function copyData(which) {
+  const b2   = store.b.map(v => v * 2);
+  const map  = { ref: store.ref, a: store.a, b: store.b, b2 };
+  const text = (map[which] || []).map(v => v + 'g').join(' ');
+  const selectors = { ref: '.copy-ref', a: '.copy-a', b: '.copy-b', b2: '.copy-x2' };
+  const btn  = document.querySelector(selectors[which]);
+  clipboard(text, btn);
+}
+
+function clipboard(text, btn) {
+  const flash = b => {
+    const orig = b.textContent;
+    b.textContent = '已複製！';
+    setTimeout(() => b.textContent = orig, 1500);
+  };
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(text).then(() => flash(btn)).catch(() => fallback(text, btn, flash));
+  } else {
+    fallback(text, btn, flash);
+  }
+}
+
+function fallback(text, btn, cb) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;';
+  document.body.appendChild(ta);
+  ta.focus(); ta.select();
+  try { document.execCommand('copy'); cb(btn); }
+  catch { btn.textContent = '請手動複製'; setTimeout(() => btn.textContent = '複製', 2500); }
+  document.body.removeChild(ta);
+}
+
+function showErr(msg) {
+  const el = document.getElementById('err-main');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey && e.key === 'Enter') calculate();
+});
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js');
+}
+</script>
+</body>
+</html>
