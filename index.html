@@ -1862,11 +1862,11 @@ function calculate() {
 
     store.scale = singleScale;
     store.priceAFull = null;
-    store.ref = scaledGrams;
+    store.ref = rawGrams;
     store.a = scaledGrams.slice();
 
     /* 全方參考區 */
-    document.getElementById('ref-badge').textContent = `全方 ${formatOneDecimal(scaledTotal)}g`;
+    document.getElementById('ref-badge').textContent = `全方 ${formatOneDecimal(total)}g`;
     document.getElementById('ref-meta').textContent = `${N} 味`;
     document.getElementById('ref-a-label').textContent = '';
     renderChips('ref-nums-a', items, store.ref, 'chip-a');
@@ -1927,7 +1927,7 @@ function calculate() {
   store.scale = scale;
   store.priceAFull = split.priceAFull ?? null;
   store.priceBFull2 = split.priceBFull2 ?? null;
-  store.ref = toGrams(ratios, total * scale);
+  store.ref = toGrams(ratios, total);
   store.a = toGrams(ratiosA, targetA);
   store.b = hasB ? toGrams(ratiosB, targetB) : [];
   store.b2 = store.b.map(v => v * 2);
@@ -1939,7 +1939,7 @@ function calculate() {
 
   /* ── 渲染：全方 ── */
   const adjustedTotal = total * scale;
-  document.getElementById('ref-badge').textContent = `全方 ${formatOneDecimal(adjustedTotal)}g`;
+  document.getElementById('ref-badge').textContent = `全方 ${formatOneDecimal(total)}g`;
   document.getElementById('ref-meta').textContent = `${N} 味`;
 
   renderChips('ref-nums-a', itemsA, refA, 'chip-a');
@@ -1954,7 +1954,7 @@ function calculate() {
     refBSection.style.display = 'none';
   }
 
-  document.getElementById('sum-ref').innerHTML = `合計 <b>${formatOneDecimal(targetA + targetB)} g</b>`;
+  document.getElementById('sum-ref').innerHTML = `合計 <b>${formatOneDecimal(total)} g</b>`;
   document.getElementById('split-note').textContent =
     hasB
       ? (priceAware && split.feasible
